@@ -1,24 +1,45 @@
-const INPUT: &'static str = include_str!("../input.txt");
+const INPUT: &str = include_str!("../input.txt");
 
 fn main() {
     let input = INPUT.lines().map(Movement::from).collect::<Vec<_>>();
 
-    let final_position = traverse(Position::start(), &input);
+    let mut sub = Submarine::new();
+    sub.traverse_multiple(&input);
 
-    println!(
-        "Part 1: {}",
-        final_position.horizontal * final_position.vertical
-    );
+    // Part 1's solution was obsoleted by Part 2 :(
+
+    println!("Part 2: {}", sub.pos.horizontal * sub.pos.vertical);
 }
 
-fn traverse(init: Position, moves: &[Movement]) -> Position {
-    let mut pos = init;
+struct Submarine {
+    pos: Position,
+    aim: i32,
+}
 
-    for &m in moves {
-        pos += m;
+impl Submarine {
+    fn new() -> Self {
+        Submarine {
+            pos: Position::start(),
+            aim: 0,
+        }
     }
 
-    pos
+    fn traverse_multiple(&mut self, moves: &[Movement]) {
+        for m in moves {
+            self.traverse(m);
+        }
+    }
+
+    fn traverse(&mut self, movement: &Movement) {
+        match movement {
+            Movement::Down(n) => self.aim += *n as i32,
+            Movement::Up(n) => self.aim -= *n as i32,
+            Movement::Forward(n) => {
+                self.pos.horizontal += n;
+                self.pos.vertical += (self.aim * *n as i32) as u32;
+            }
+        };
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -43,36 +64,6 @@ enum Movement {
     Up(u32),
 }
 
-impl std::ops::Add<Movement> for Position {
-    type Output = Self;
-
-    fn add(self, rhs: Movement) -> Self::Output {
-        match rhs {
-            Movement::Forward(n) => Position {
-                horizontal: self.horizontal + n,
-                ..self
-            },
-            Movement::Down(n) => Position {
-                vertical: self.vertical + n,
-                ..self
-            },
-            Movement::Up(n) => Position {
-                vertical: self.vertical.saturating_sub(n),
-                ..self
-            },
-        }
-    }
-}
-
-impl std::ops::AddAssign<Movement> for Position {
-    fn add_assign(&mut self, rhs: Movement) {
-        let new_pos = *self + rhs;
-
-        self.horizontal = new_pos.horizontal;
-        self.vertical = new_pos.vertical;
-    }
-}
-
 impl From<&str> for Movement {
     fn from(input: &str) -> Self {
         let parts: [_; 2] = input
@@ -95,58 +86,6 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_add_move_forward() {
-        let pos = Position {
-            horizontal: 10,
-            vertical: 0,
-        };
-        assert_eq!(
-            pos + Movement::Forward(10),
-            Position {
-                horizontal: 20,
-                vertical: 0
-            }
-        );
-    }
-
-    #[test]
-    fn test_add_move_down() {
-        let pos = Position {
-            horizontal: 0,
-            vertical: 10,
-        };
-        assert_eq!(
-            pos + Movement::Down(10),
-            Position {
-                horizontal: 0,
-                vertical: 20
-            }
-        );
-    }
-
-    #[test]
-    fn test_add_move_up() {
-        let pos = Position {
-            horizontal: 0,
-            vertical: 10,
-        };
-        assert_eq!(
-            pos + Movement::Up(10),
-            Position {
-                horizontal: 0,
-                vertical: 0
-            }
-        );
-        assert_eq!(
-            pos + Movement::Up(20),
-            Position {
-                horizontal: 0,
-                vertical: 0
-            }
-        );
-    }
-
-    #[test]
     fn test_movement_parsing() {
         assert_eq!(Movement::from("forward 8"), Movement::Forward(8));
         assert_eq!(Movement::from("down 8"), Movement::Down(8));
@@ -155,24 +94,24 @@ mod test {
 
     #[test]
     fn test_traverse() {
-        let init = Position::start();
+        let mut sub = Submarine::new();
 
-        assert_eq!(traverse(init, &[]), init);
+        sub.traverse_multiple(&[]);
+        assert_eq!(sub.pos, Position::start());
+
+        sub.traverse_multiple(&[
+            Movement::Forward(5),
+            Movement::Down(5),
+            Movement::Forward(8),
+            Movement::Up(3),
+            Movement::Down(8),
+            Movement::Forward(2),
+        ]);
         assert_eq!(
-            traverse(
-                init,
-                &[
-                    Movement::Forward(5),
-                    Movement::Down(5),
-                    Movement::Forward(8),
-                    Movement::Up(3),
-                    Movement::Down(8),
-                    Movement::Forward(2)
-                ]
-            ),
+            sub.pos,
             Position {
                 horizontal: 15,
-                vertical: 10,
+                vertical: 60
             }
         );
     }
