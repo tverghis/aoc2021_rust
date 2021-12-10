@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use nom::{
     bytes::complete::tag,
     character::complete::{digit1, multispace1, newline, space0, space1},
@@ -12,6 +14,8 @@ pub struct GameState {
     pub draws: Vec<u32>,
     pub boards: Vec<Board<u32>>,
     pub virtual_boards: Vec<Board<bool>>,
+    pub completed_boards: HashSet<usize>,
+    pub winning_scores: Vec<u32>,
 }
 
 impl GameState {
@@ -28,26 +32,32 @@ impl GameState {
             draws,
             boards,
             virtual_boards,
+            completed_boards: HashSet::new(),
+            winning_scores: Vec::new(),
         }
     }
 
-    pub fn run(&mut self) -> u32 {
+    pub fn run(&mut self) {
         for drawn in self.draws.iter() {
             for (b, board) in self.boards.iter().enumerate() {
                 if let Some((i, j)) = board.find(*drawn) {
                     self.virtual_boards[b].set(i, j, true);
 
-                    if self.virtual_boards[b].is_winner() {
-                        return self.score_for_board(b) * drawn;
+                    if !self.completed_boards.contains(&b) && self.virtual_boards[b].is_winner() {
+                        self.completed_boards.insert(b);
+                        self.winning_scores.push(self.score_for_board(b) * drawn);
+
+                        if self.completed_boards.len() == self.boards.len() {
+                            // Stop as soon as the last board has won
+                            break;
+                        }
                     }
                 }
             }
         }
-
-        unreachable!()
     }
 
-    pub fn score_for_board(&self, board_num: usize) -> u32 {
+    fn score_for_board(&self, board_num: usize) -> u32 {
         let board = &self.boards[board_num];
         let virtual_board = &self.virtual_boards[board_num];
 
@@ -243,7 +253,7 @@ mod test {
     #[test]
     fn test_run() {
         let mut game = GameState::new(
-            r#"7,4,9,5,11,17,23,2,0,14,21,24
+            r#"7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1
 
 22 13 17 11  0
  8  2 23  4 24
@@ -265,6 +275,9 @@ mod test {
 "#,
         );
 
-        assert_eq!(game.run(), 4512);
+        game.run();
+
+        assert_eq!(game.winning_scores.first(), Some(&4512));
+        assert_eq!(game.winning_scores.last(), Some(&1924));
     }
 }
