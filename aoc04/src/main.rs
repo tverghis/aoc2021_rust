@@ -2,6 +2,7 @@ use game_state::GameState;
 
 mod board;
 mod game_state;
+mod parse;
 
 const INPUT: &str = include_str!("../input.txt");
 
