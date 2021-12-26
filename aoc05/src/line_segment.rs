@@ -13,7 +13,8 @@ pub struct Point(u32, u32);
 pub enum Orientation {
     Horizontal,
     Vertical,
-    Diagonal,
+    DiagonalPrimary,
+    DiagonalSecondary,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -24,6 +25,18 @@ pub struct LineSegment {
 
 impl LineSegment {
     fn new(endpoints: (Point, Point)) -> Self {
+        let Point(x1, _) = endpoints.0;
+        let Point(x2, _) = endpoints.1;
+
+        // Ensure that the endpoints are "sorted" by their x-coords.
+        // This makes some calculations easier later on.
+        let endpoints = if x1 <= x2 {
+            endpoints
+        } else {
+            (endpoints.1, endpoints.0)
+        };
+
+        // Re-bind x1, x2, y1, y2 in case the order of the endpoints changed.
         let Point(x1, y1) = endpoints.0;
         let Point(x2, y2) = endpoints.1;
 
@@ -31,8 +44,10 @@ impl LineSegment {
             Orientation::Vertical
         } else if y1 == y2 {
             Orientation::Horizontal
+        } else if y2 > y1 {
+            Orientation::DiagonalSecondary
         } else {
-            Orientation::Diagonal
+            Orientation::DiagonalPrimary
         };
 
         LineSegment {
@@ -45,15 +60,7 @@ impl LineSegment {
         let (Point(x1, y1), Point(x2, y2)) = self.endpoints;
 
         match self.orientation {
-            Orientation::Diagonal => todo!(),
-            Orientation::Horizontal => {
-                let start = std::cmp::min(x1, x2);
-                let end = std::cmp::max(x1, x2);
-
-                RangeInclusive::new(start, end)
-                    .map(|x| Point(x, y1))
-                    .collect()
-            }
+            Orientation::Horizontal => RangeInclusive::new(x1, x2).map(|x| Point(x, y1)).collect(),
             Orientation::Vertical => {
                 let start = std::cmp::min(y1, y2);
                 let end = std::cmp::max(y1, y2);
@@ -61,6 +68,34 @@ impl LineSegment {
                 RangeInclusive::new(start, end)
                     .map(|y| Point(x1, y))
                     .collect()
+            }
+            Orientation::DiagonalPrimary => {
+                let mut x = x1;
+                let mut y = y1 as i32;
+                let mut points = vec![];
+
+                while (x <= x2) && (y as u32 >= y2) {
+                    points.push(Point(x, y as u32));
+
+                    x += 1;
+                    y -= 1;
+                }
+
+                points
+            }
+            Orientation::DiagonalSecondary => {
+                let mut x = x1;
+                let mut y = y1;
+                let mut points = vec![];
+
+                while (x <= x2) && (y <= y2) {
+                    points.push(Point(x, y));
+
+                    x += 1;
+                    y += 1;
+                }
+
+                points
             }
         }
     }
@@ -96,6 +131,10 @@ mod test {
             parse_line_segment("477,485 -> 864,485"),
             LineSegment::new((Point(477, 485), Point(864, 485)))
         );
+        assert_eq!(
+            parse_line_segment("35,10 -> 20,120"),
+            LineSegment::new((Point(20, 120), Point(35, 10)))
+        );
     }
 
     #[test]
@@ -110,7 +149,11 @@ mod test {
         );
         assert_eq!(
             parse_line_segment("8,0 -> 0,8").orientation,
-            Orientation::Diagonal
+            Orientation::DiagonalPrimary
+        );
+        assert_eq!(
+            parse_line_segment("1,0 -> 5,4").orientation,
+            Orientation::DiagonalSecondary
         );
     }
 
@@ -149,6 +192,24 @@ mod test {
                 Point(2, 9),
                 Point(2, 10),
             ]
+        );
+    }
+
+    #[test]
+    fn test_points_diagonal_primary() {
+        let line_segment = parse_line_segment("1,1 -> 3,3");
+        assert_eq!(
+            line_segment.points(),
+            vec![Point(1, 1), Point(2, 2), Point(3, 3)]
+        );
+    }
+
+    #[test]
+    fn test_points_diagonal_secondary() {
+        let line_segment = parse_line_segment("9,7 -> 7,9");
+        assert_eq!(
+            line_segment.points(),
+            vec![Point(7, 9), Point(8, 8), Point(9, 7)]
         );
     }
 }

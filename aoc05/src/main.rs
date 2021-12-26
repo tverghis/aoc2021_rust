@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use line_segment::{parse_line_segment, LineSegment};
+use line_segment::{parse_line_segment, LineSegment, Point};
 
 use crate::line_segment::Orientation;
 
@@ -10,6 +10,7 @@ fn main() {
     let input = parse_input(include_str!("../input.txt"));
 
     println!("Part 1: {}", part_1(&input));
+    println!("Part 2: {}", part_2(&input));
 }
 
 fn parse_input(input: &str) -> Vec<LineSegment> {
@@ -24,6 +25,16 @@ fn part_1(input: &[LineSegment]) -> usize {
         })
         .flat_map(|ls| ls.points());
 
+    find_overlapped_points(points)
+}
+
+fn part_2(input: &[LineSegment]) -> usize {
+    let points = input.iter().flat_map(|ls| ls.points());
+
+    find_overlapped_points(points)
+}
+
+fn find_overlapped_points<P: Iterator<Item = Point>>(points: P) -> usize {
     let mut contained_points = HashMap::new();
 
     for point in points {
@@ -56,5 +67,23 @@ mod test {
         let input_parsed = parse_input(input);
 
         assert_eq!(part_1(&input_parsed), 5);
+    }
+
+    #[test]
+    fn test_part_2() {
+        let input = "0,9 -> 5,9
+8,0 -> 0,8
+9,4 -> 3,4
+2,2 -> 2,1
+7,0 -> 7,4
+6,4 -> 2,0
+0,9 -> 2,9
+3,4 -> 1,4
+0,0 -> 8,8
+5,5 -> 8,2";
+
+        let input_parsed = parse_input(input);
+
+        assert_eq!(part_2(&input_parsed), 12);
     }
 }
